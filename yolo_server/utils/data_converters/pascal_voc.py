@@ -166,7 +166,7 @@ if __name__ == "__main__":
     
 
     from utils.logging_utils import setup_logging
-    logger = setup_logging(base_path=Path("./"))
+    logger = setup_logging(base_path=yolo_server_root / "logs")
     # classes_ = convert_pascal_voc_to_yolo(
     #     xml_input_dir=Path(r"C:\Users\Matri\Desktop\SafeYolo\yolo_server\data\raw\original_annotations"),
     #     output_yolo_txt_dir=Path(r"C:\Users\Matri\Desktop\SafeYolo\yolo_server\data\raw\yolo_staged_labels"),
