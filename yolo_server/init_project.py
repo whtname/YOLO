@@ -1,11 +1,3 @@
-#!/usr/bin/env python
-# -*- coding:utf-8 -*-
-# @FileName   :init_project.py
-# @Time       :2025/6/30 15:38:54
-# @Author     :雨觉同学
-# @Project    :SafeYolo
-# @Function   :用于初始化项目, 创建各种目录结构
-
 import logging
 
 from utils.logging_utils import setup_logging  # 暴露外部接口之后可这样调用
