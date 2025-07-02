@@ -153,6 +153,18 @@ def convert_pascal_voc_to_yolo(
 
 
 if __name__ == "__main__":
+    import sys
+    from pathlib import Path
+    yolo_server_root = Path(__file__).resolve().parent.parent.parent
+    utils_path = yolo_server_root / "utils"
+    print(f"yolo_server_root:{yolo_server_root}")
+    print(f"utils_path:{utils_path}")
+    if str(yolo_server_root) not in sys.path:
+        sys.path.append(str(yolo_server_root))
+    if str(utils_path) not in sys.path:
+        sys.path.append(str(utils_path))
+    
+
     from utils.logging_utils import setup_logging
     logger = setup_logging(base_path=Path("./"))
     # classes_ = convert_pascal_voc_to_yolo(
@@ -163,8 +175,8 @@ if __name__ == "__main__":
     # print(f"自动模式：{classes_}")
     classes_= ['head', 'ordinary_clothes']
     convert_pascal_voc_to_yolo(
-        xml_input_dir=Path(r"C:\Users\Matri\Desktop\SafeYolo\yolo_server\data\raw\original_annotations"),
-        output_yolo_txt_dir=Path(r"C:\Users\Matri\Desktop\SafeYolo\yolo_server\data\raw\yolo_staged_labels"),
+        xml_input_dir=Path(r"/home/niuoruo/workspace/yolo/YOLO/yolo_server/data/raw/original_annotations"),
+        output_yolo_txt_dir=Path(r"/home/niuoruo/workspace/yolo/YOLO/yolo_server/data/raw/yolo_staged_labels"),
         target_classes_for_yolo=classes_
     )
     print(f"手动模式：{classes_}")
