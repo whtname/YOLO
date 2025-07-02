@@ -1,11 +1,3 @@
-
-#!/usr/bin/env python
-# -*- coding:utf-8 -*-
-# @FileName  :yolo_trans.py
-# @Time      :2025/7/2 11:18:42
-# @Author    :雨霓同学
-# @Project   :SafeYolo
-# @Function  :将原始标注的数据转为yolo格式，划分训练集和测试集验证集，组织数据到指定的位置，生成配置文件
 import argparse
 import sys
 from pathlib import Path
@@ -26,7 +18,6 @@ if str(utils_path) not in sys.path:
 from performance_utils import time_it
 from logging_utils import setup_logging
 from paths import (YOLO_SERVER_ROOT,
-                RAW_DATA_DIR,
                 RAW_IMAGES_DIR,
                 ORIGINAL_ANNOTATIONS_DIR,
                 YOLO_STAGED_LABELS_DIR,
@@ -167,7 +158,7 @@ class YOLODatasetProcessor:
 
         # 第一次划分，训练集  VS 临时集（验证集 + 测试集）
         train_labels, temp_labels,train_images, temp_images = train_test_split(
-            label_files, image_paths, test_size=self.train_rate,
+            label_files, image_paths, train_size=self.train_rate,
             random_state=42, shuffle=True)
         val_labels, test_labels, val_images, test_images = [], [], [], []
 
@@ -188,7 +179,7 @@ class YOLODatasetProcessor:
                     logger.info("测试集比例为0，所有剩余数据分配给验证集")
                 else:
                     val_labels, test_labels, val_images, test_images = train_test_split(
-                        temp_labels, temp_images, test_size=val_ration_in_temp,
+                        temp_labels, temp_images, train_size=val_ration_in_temp,
                         random_state=42, shuffle=True)
 
         logger.info(f"数据集划分完成，具体结果如下")
@@ -196,7 +187,7 @@ class YOLODatasetProcessor:
         logger.info(f"验证集：{len(val_labels)} 个标签文件，{len(val_images)} 个图像文件")
         logger.info(f"测试集：{len(test_labels)} 个标签文件，{len(test_images)} 个图像文件")
 
-        self._process_single_split(label_files, image_paths, "train")
+        self._process_single_split(train_labels, train_images, "train")
         self._process_single_split(val_labels, val_images, "val")
         self._process_single_split(test_labels, test_images, "test")
 
@@ -271,6 +262,7 @@ class YOLODatasetProcessor:
         except Exception as e:
             logger.error(f"生成数据配置文件 {yaml_path.relative_to(YOLO_SERVER_ROOT)} 失败，错误信息为 {e}")
 
+    @time_it(iterations=1,name="数据准备与划分",logger_instance=logger)
     def process_data(self,source_data_root_dir: Path = ORIGINAL_ANNOTATIONS_DIR,):
         """
         执行整个数据集准备和划分流程
@@ -394,7 +386,6 @@ if __name__ == "__main__":
                         action="store_true", help="将COCO 91类映射 80类")
 
     args = parser.parse_args()
-    print(args, args.classes, type(args.classes))
 
     # === 最关键的修改：在应用程序入口点调用 setup_logger 配置根 Logger ===
     # 这里的 log_level 将控制所有通过根 Logger 输出的最低日志级别 (例如控制台)。
@@ -403,6 +394,7 @@ if __name__ == "__main__":
         base_path=LOGS_DIR,
         log_type="yolo_trans",
         model_name=None, # 如果不需要特定模型名，可以保持 None
+        temp_log=False,
     )
     # 确保主脚本的 logger 也能正常工作
     # main_script_logger = logging.getLogger(__name__)
@@ -431,5 +423,5 @@ if __name__ == "__main__":
     logger.info(f"测试集图像目录：{processor.output_dirs['test']['images'].relative_to(YOLO_SERVER_ROOT)}")
     logger.info(f"测试集标注文件：{processor.output_dirs['test']['labels'].relative_to(YOLO_SERVER_ROOT)}")
     logger.info(f"数据集配置文件：{processor.config_path.relative_to(YOLO_SERVER_ROOT)}")
-    logger.info(f"详细的日志文件位于 {LOGS_DIR.relative_to(YOLO_SERVER_ROOT)}")
+    logger.info(f"详细的日志文件位于: {LOGS_DIR.relative_to(YOLO_SERVER_ROOT)}")
     logger.info(f"接下来请执行数据验证脚本 yolo_validate.py 以验证数据转换是否正确")
