@@ -10,7 +10,8 @@ DATA_DIR=YOLOSERVER_ROOT/"data"
 RUNS_DIR=YOLOSERVER_ROOT/"runs"
 #_模型存放目录
 MODELS_DIR=YOLOSERVER_ROOT/"models"
-#_预训练模型存放目录"
+#_预训练模型存放目录
+
 #_训练好的模型存放目录
 CHECKPOINTS_DIR=MODELS_DIR/"checkpoints"
 #_顶层脚本存放目录

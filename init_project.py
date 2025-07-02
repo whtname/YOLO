@@ -8,8 +8,8 @@
 
 import logging
 
-from utils import setup_logging  # 暴露外部接口之后可这样调用
-from utils import time_it
+from utils.logging_utils import setup_logging  # 暴露外部接口之后可这样调用
+from utils.performance_utils import time_it
 
 from utils.paths import (
     YOLOSERVER_ROOT,

@@ -63,7 +63,7 @@ def time_it(iterations: int = 1, name: str = None, logger_instance: logging.Logg
 
 
 if __name__ == "__main__":
-    from logging_utils import setup_logging
+    from utils.logging_utils import setup_logging
     from pathlib import Path
     logger = setup_logging(base_path=Path("."),log_type="test")
     
