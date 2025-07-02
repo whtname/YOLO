@@ -23,7 +23,6 @@ from utils.paths import (
 logger = setup_logging(
     base_path=LOGS_DIR,
     log_type="init_project",
-    logger_name="YOLO Init Project",
 )
 
 @time_it(iterations=1, name="init_project", logger_instance=logger)
