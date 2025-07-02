@@ -4,7 +4,7 @@ from utils.logging_utils import setup_logging  # 暴露外部接口之后可这�
 from utils.performance_utils import time_it
 
 from utils.paths import (
-    YOLOSERVER_ROOT,
+    YOLO_SERVER_ROOT,
     CONFIGS_DIR,
     DATA_DIR,
     RUNS_DIR,
@@ -33,7 +33,7 @@ def initialize_project(logger_instance: logging.Logger = None):
     :return:
     """
     logger_instance.info("开始初始化项目".center(50, "="))
-    logger_instance.info(f"项目的根路径为: {YOLOSERVER_ROOT.resolve()}")
+    logger_instance.info(f"项目的根路径为: {YOLO_SERVER_ROOT.resolve()}")
 
     created_dirs = []
     existed_dirs = []
@@ -65,14 +65,14 @@ def initialize_project(logger_instance: logging.Logger = None):
         if not d.exists():
             try:
                 d.mkdir(parents=True, exist_ok=True)
-                logger_instance.info(f"已成功创建目录: {d.relative_to(YOLOSERVER_ROOT)}")
-                created_dirs.append(d.relative_to(YOLOSERVER_ROOT))
+                logger_instance.info(f"已成功创建目录: {d.relative_to(YOLO_SERVER_ROOT)}")
+                created_dirs.append(d.relative_to(YOLO_SERVER_ROOT))
             except Exception as e:
-                logger_instance.error(f"创建目录 {d.relative_to(YOLOSERVER_ROOT)} 失败: {e}")
-                created_dirs.append(f"{d.relative_to(YOLOSERVER_ROOT)} (创建失败 {e})")
+                logger_instance.error(f"创建目录 {d.relative_to(YOLO_SERVER_ROOT)} 失败: {e}")
+                created_dirs.append(f"{d.relative_to(YOLO_SERVER_ROOT)} (创建失败 {e})")
         else:
-            existed_dirs.append(d.relative_to(YOLOSERVER_ROOT))
-            logger_instance.info(f"目录已存在: {d.relative_to(YOLOSERVER_ROOT)}")
+            existed_dirs.append(d.relative_to(YOLO_SERVER_ROOT))
+            logger_instance.info(f"目录已存在: {d.relative_to(YOLO_SERVER_ROOT)}")
     logger_instance.info("项目核心目录检查与创建完毕".center(50, "="))
 
     # 检查原始数据集目录并给出提示
@@ -86,16 +86,16 @@ def initialize_project(logger_instance: logging.Logger = None):
             msg = (f"{desc}目录不存在, 请将原始数据放到该路径下, 并确保目录结构正确,以便后续转换数据, "
                    f"输入数据路径为: {raw_dir.resolve()}！")
             logger_instance.warning(msg)
-            raw_data_status.append(f"{raw_dir.relative_to(YOLOSERVER_ROOT)} (不存在,需要手动创建并放置原始数据)")
+            raw_data_status.append(f"{raw_dir.relative_to(YOLO_SERVER_ROOT)} (不存在,需要手动创建并放置原始数据)")
         else:
             if not any(raw_dir.iterdir()):
                 msg = (f"{desc}目录已经存在,但内容为空, 请将原始{desc}放入到该路径下,以便后续转换数据, "
-                       f"输入数据路径为: {raw_dir.relative_to(YOLOSERVER_ROOT)}！")
+                       f"输入数据路径为: {raw_dir.relative_to(YOLO_SERVER_ROOT)}！")
                 logger_instance.warning(msg)
-                raw_data_status.append(f"{raw_dir.relative_to(YOLOSERVER_ROOT)} (为空,需要放置原始数据)")
+                raw_data_status.append(f"{raw_dir.relative_to(YOLO_SERVER_ROOT)} (为空,需要放置原始数据)")
             else:
-                logger_instance.info(f"原始{desc}目录已存在: {raw_dir.relative_to(YOLOSERVER_ROOT)}包含原始文件")
-                raw_data_status.append(f"{raw_dir.relative_to(YOLOSERVER_ROOT)} (存在,请勿重复创建)")
+                logger_instance.info(f"原始{desc}目录已存在: {raw_dir.relative_to(YOLO_SERVER_ROOT)}包含原始文件")
+                raw_data_status.append(f"{raw_dir.relative_to(YOLO_SERVER_ROOT)} (存在,请勿重复创建)")
 
     # 汇总所有检查和创建结果
     logger_instance.info("项目初始化结果汇总".center(50, "="))

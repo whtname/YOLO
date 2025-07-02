@@ -1,20 +1,20 @@
 from pathlib import Path
 
 # YOLO服务的项目根目录，无论项目从哪个目录运行，该目录都是项目根目录
-YOLOSERVER_ROOT = Path(__file__).resolve().parent.parent
+YOLO_SERVER_ROOT = Path(__file__).resolve().parent.parent
 
 # 核心目录定义
 # 配置文件目录
-CONFIGS_DIR = YOLOSERVER_ROOT / "configs"
+CONFIGS_DIR = YOLO_SERVER_ROOT / "configs"
 
 # 数据存放目录
-DATA_DIR = YOLOSERVER_ROOT / "data"
+DATA_DIR = YOLO_SERVER_ROOT / "data"
 
 # 结果存放目录
-RUNS_DIR = YOLOSERVER_ROOT / "runs"
+RUNS_DIR = YOLO_SERVER_ROOT / "runs"
 
 # 模型存放目录
-MODELS_DIR = YOLOSERVER_ROOT / "models"
+MODELS_DIR = YOLO_SERVER_ROOT / "models"
 
 # 预训练模型存放目录
 PRETRAINED_MODELS_DIR = MODELS_DIR / "pretrained"
@@ -23,10 +23,10 @@ PRETRAINED_MODELS_DIR = MODELS_DIR / "pretrained"
 CHECKPOINTS_DIR = MODELS_DIR / "checkpoints"
 
 # 顶层脚本存放目录
-SCRIPTS_DIR = YOLOSERVER_ROOT / "scripts"
+SCRIPTS_DIR = YOLO_SERVER_ROOT / "scripts"
 
 # 日志文件存放目录
-LOGS_DIR = YOLOSERVER_ROOT / "logs"
+LOGS_DIR = YOLO_SERVER_ROOT / "logs"
 
 # 具体数据存放路径
 RAW_DATA_DIR = DATA_DIR / "raw"
@@ -42,7 +42,7 @@ YOLO_STAGED_LABELS_DIR = RAW_DATA_DIR / "yolo_staged_labels"
 
 if __name__ == '__main__':
     for _path in [
-        YOLOSERVER_ROOT,
+        YOLO_SERVER_ROOT,
         CONFIGS_DIR,
         DATA_DIR,
         RUNS_DIR,
