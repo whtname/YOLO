@@ -4,3 +4,4 @@ __pycache__/
 logs
 logs/
 yolo_server/logs/
+general/
