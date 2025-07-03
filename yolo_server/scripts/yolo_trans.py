@@ -1,11 +1,3 @@
-
-#!/usr/bin/env python
-# -*- coding:utf-8 -*-
-# @FileName  :yolo_trans.py
-# @Time      :2025/7/2 11:18:42
-# @Author    :雨霓同学
-# @Project   :SafeYolo
-# @Function  :将原始标注的数据转为yolo格式，划分训练集和测试集验证集，组织数据到指定的位置，生成配置文件
 import argparse
 import sys
 from pathlib import Path
@@ -13,7 +5,6 @@ import yaml  #  处理yaml文件的
 import shutil # 拷贝复制用的
 import logging
 from typing import List, Union, Dict, Any, Tuple
-
 from sklearn.model_selection import train_test_split  # 数据集划分
 
 yolo_server_root_path = Path(__file__).resolve().parent.parent

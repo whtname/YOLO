@@ -1,10 +1,3 @@
-#!/usr/bin/env python
-# -*- coding:utf-8 -*-
-# @FileName  :dataset_validation.py
-# @Time      :2025/6/14 21:30:48
-# @Author    :雨霓同学
-# @Project   :BrainTumorDetection
-# @Function  :验证YOLO数据集配置以及相关文件
 """
 这是一个用于YOLO数据集验证和分析的Python脚本。
 主要功能包括：
