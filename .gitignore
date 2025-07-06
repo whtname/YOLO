@@ -8,3 +8,4 @@ general/
 configs/
 model/pretrained
 runs/
+YOLO.egg-info/

@@ -5,22 +5,14 @@ import sys
 from ultralytics import YOLO
 import torch  # 添加PyTorch导入以检查GPU
 
-yolo_server_root_path = Path(__file__).resolve().parent.parent
-utils_path = yolo_server_root_path / "utils"
-if str(yolo_server_root_path) not in sys.path:
-    sys.path.insert(0,str(yolo_server_root_path))
-if str(utils_path) not in sys.path:
-    sys.path.insert(1,str(utils_path))
-    
-    
-from logging_utils import setup_logging, rename_log_file
-from performance_utils import time_it
-from config_utils import load_yaml_config, merger_configs, log_parameters
-from paths import LOGS_DIR, PRETRAINED_MODELS_DIR, CHECKPOINTS_DIR
-from system_utils import log_device_info
-from datainfo_utils import log_dataset_info
-from result_utils import log_results
-from model_utils import copy_checkpoint_models
+from utils.logging_utils import setup_logging, rename_log_file
+from utils.performance_utils import time_it
+from utils.config_utils import load_yaml_config, merger_configs, log_parameters
+from utils.paths import LOGS_DIR, PRETRAINED_MODELS_DIR, CHECKPOINTS_DIR
+from utils.system_utils import log_device_info
+from utils.datainfo_utils import log_dataset_info
+from utils.result_utils import log_results
+from utils.model_utils import copy_checkpoint_models
 
 def parser_args():
     parser = argparse.ArgumentParser(description="YOLO Training")
@@ -59,6 +51,7 @@ def main(logger):
 
         logger.info(f"初始化YOLO模型,加载模型{project_args.weights}")
         model_path = PRETRAINED_MODELS_DIR / project_args.weights
+
         if not model_path.exists():
             logger.warning(f"模型文件{model_path}不存在，请将模型{project_args.weights}放入到{model_path}")
             raise FileNotFoundError(f"模型文件{model_path}不存在")
@@ -78,7 +71,7 @@ def main(logger):
             logger.info(f"使用用户指定设备: {device}")
 
         # 使用选定的设备初始化模型
-        model = YOLO(model_path)
+        model = YOLO(model=model_path)
         model.to(device)  # 将模型移至指定设备
 
         # 动态应用time_it装饰器
@@ -87,7 +80,8 @@ def main(logger):
         # 更新训练参数中的设备
         yolo_args_dict = vars(yolo_args)
         yolo_args_dict['device'] = device
-        results = decorated_run_training(model, argparse.Namespace(**yolo_args_dict))
+        # results = decorated_run_training(model, argparse.Namespace(**yolo_args_dict))
+        results = model.train(**yolo_args_dict)
 
         # 获取结果
         if results and hasattr(model.trainer, 'save_dir'):

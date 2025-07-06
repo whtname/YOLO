@@ -6,7 +6,7 @@ from pathlib import Path
 
 from ultralytics.data.converter import convert_coco
 
-from paths import RAW_DATA_DIR, YOLO_STAGED_LABELS_DIR
+from utils.paths import RAW_DATA_DIR, YOLO_STAGED_LABELS_DIR
 
 logger = logging.getLogger(__name__)
 

@@ -6,7 +6,8 @@ import shutil # 拷贝复制用的
 import logging
 from typing import List, Union, Dict, Any, Tuple
 from sklearn.model_selection import train_test_split  # 数据集划分
-from utils import time_it,setup_logging
+from utils.logging_utils import setup_logging
+from utils.performance_utils import time_it
 from utils.paths import (YOLO_SERVER_ROOT,
                 RAW_IMAGES_DIR,
                 ORIGINAL_ANNOTATIONS_DIR,

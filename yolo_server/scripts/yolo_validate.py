@@ -3,21 +3,14 @@ from pathlib import Path
 import logging
 import argparse
 
-yolo_server_root_path = Path(__file__).resolve().parent.parent
-utils_path = yolo_server_root_path / "utils"
-if str(yolo_server_root_path) not in sys.path:
-    sys.path.insert(0,str(yolo_server_root_path))
-if str(utils_path) not in sys.path:
-    sys.path.insert(1,str(utils_path))
-
 from utils.data_validation import (
     verify_dataset_config, # 核心验证与数据集分析函数
     verify_split_uniqueness, # 数据集划分唯一性验证
     delete_invalid_files,  # 删除无效文件
     )
 
-from logging_utils import setup_logging
-from paths import LOGS_DIR, CONFIGS_DIR
+from utils.logging_utils import setup_logging
+from utils.paths import LOGS_DIR, CONFIGS_DIR
 
 DEFAULT_SAMPLE_RATIO = 0.1
 DEFAULT_MIN_SAMPLES = 20

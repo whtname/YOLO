@@ -5,8 +5,8 @@ from typing import List, Union
 
 from utils.paths import YOLO_SERVER_ROOT, RAW_DATA_DIR, YOLO_STAGED_LABELS_DIR, ORIGINAL_ANNOTATIONS_DIR
 
-from data_converters.coco import convert_coco_json_to_yolo  # 这是我发的
-from data_converters.pascal_voc import convert_pascal_voc_to_yolo
+from .data_converters.coco import convert_coco_json_to_yolo  # 这是我发的
+from .data_converters.pascal_voc import convert_pascal_voc_to_yolo
 
 logger = logging.getLogger(__name__)
 

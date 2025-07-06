@@ -37,7 +37,7 @@ WARN_PREFIX = "WARN: "
 DEBUG_PREFIX = "DEBUG: "
 
 # 导入性能分析工具（假设 performance_utils.py 存在于同一目录或可导入路径中）
-from performance_utils import time_it
+from utils.performance_utils import time_it
 
 # --- 2. 辅助函数：负责特定的验证子任务 ---
 

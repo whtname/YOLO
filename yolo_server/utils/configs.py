@@ -2,7 +2,7 @@ import torch
 import sys
 from pathlib import Path
 
-from paths import RUNS_DIR
+from utils.paths import RUNS_DIR
 
 DEFAULT_TRAIN_CONFIG = {
     # 基本参数
@@ -11,7 +11,7 @@ DEFAULT_TRAIN_CONFIG = {
     'time': 'null',  # 明确禁用时间限制
     'batch': 16,
     'imgsz': 640,
-    'device': "0" if torch.cuda.is_available() else "cpu",
+    'device': "cuda:0" if torch.cuda.is_available() else "cpu",
     'workers': 8,
 
     # 训练控制
