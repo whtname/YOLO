@@ -20,14 +20,6 @@ import random
 from collections import defaultdict
 from typing import List, Dict, Union, Tuple
 import math
-import sys
-
-yolo_server_root_path = Path(__file__).resolve().parent.parent
-utils_path = yolo_server_root_path / "utils"
-if str(yolo_server_root_path) not in sys.path:
-    sys.path.insert(0,str(yolo_server_root_path))
-if str(utils_path) not in sys.path:
-    sys.path.insert(1,str(utils_path))
 
 # --- 1. 常量与日志配置 ---
 

@@ -6,17 +6,8 @@ import shutil # 拷贝复制用的
 import logging
 from typing import List, Union, Dict, Any, Tuple
 from sklearn.model_selection import train_test_split  # 数据集划分
-
-yolo_server_root_path = Path(__file__).resolve().parent.parent
-utils_path = yolo_server_root_path / "utils"
-if str(yolo_server_root_path) not in sys.path:
-    sys.path.insert(0,str(yolo_server_root_path))
-if str(utils_path) not in sys.path:
-    sys.path.insert(1,str(utils_path))
-
-from performance_utils import time_it
-from logging_utils import setup_logging
-from paths import (YOLO_SERVER_ROOT,
+from utils import time_it,setup_logging
+from utils.paths import (YOLO_SERVER_ROOT,
                 RAW_IMAGES_DIR,
                 ORIGINAL_ANNOTATIONS_DIR,
                 YOLO_STAGED_LABELS_DIR,
@@ -25,7 +16,7 @@ from paths import (YOLO_SERVER_ROOT,
                 DATA_DIR
                 )
 
-from data_converters_utils import convert_data_to_yolo
+from utils.data_converters_utils import convert_data_to_yolo
 
 logger = logging.getLogger("YOLO DataConversion")
 

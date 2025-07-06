@@ -2,13 +2,6 @@ import torch
 import sys
 from pathlib import Path
 
-yolo_server_root_path = Path(__file__).resolve().parent.parent
-utils_path = yolo_server_root_path / "utils"
-if str(yolo_server_root_path) not in sys.path:
-    sys.path.insert(0,str(yolo_server_root_path))
-if str(utils_path) not in sys.path:
-    sys.path.insert(1,str(utils_path))
-
 from paths import RUNS_DIR
 
 DEFAULT_TRAIN_CONFIG = {
