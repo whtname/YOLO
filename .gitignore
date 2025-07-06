@@ -7,3 +7,4 @@ yolo_server/logs/
 general/
 configs/
 model/pretrained
+runs/

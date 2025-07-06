@@ -3,6 +3,7 @@ from pathlib import Path
 import sys
 
 from ultralytics import YOLO
+import torch  # 添加PyTorch导入以检查GPU
 
 yolo_server_root_path = Path(__file__).resolve().parent.parent
 utils_path = yolo_server_root_path / "utils"
@@ -20,32 +21,29 @@ from system_utils import log_device_info
 from datainfo_utils import log_dataset_info
 from result_utils import log_results
 from model_utils import copy_checkpoint_models
+
 def parser_args():
     parser = argparse.ArgumentParser(description="YOLO Training")
     parser.add_argument("--data", type=str, default="data.yaml", help="yaml配置文件")
     parser.add_argument("--weights", type=str, default="yolo11n.pt", help="模型权重文件")
     parser.add_argument("--batch", type=int, default=16, help="训练批次大小")
     parser.add_argument("--epochs", type=int, default=4, help="训练轮数")
-    parser.add_argument("--device", type=str, default="0", help="训练设备")
+    parser.add_argument("--device", type=str, default=None, help="训练设备，默认自动选择")
     parser.add_argument("--workers",type=int, default=8, help="训练数据加载线程数")
-
     parser.add_argument("--use_yaml", type=bool, default=True, help="是否使用yaml配置文件")
 
     return parser.parse_args()
 
-
-def run_training(model,yolo_args):
+def run_training(model, yolo_args):
     results = model.train(**vars(yolo_args))
     return results
 
-
-def main(looger):
+def main(logger):
     logger.info(f"YOLO 工业安全生产检测模型训练脚本启动".center(50, "="))
     try:
         yaml_config = {}
         if args.use_yaml:
             yaml_config = load_yaml_config()
-
 
         # 合并参数
         yolo_args, project_args = merger_configs(args, yaml_config)
@@ -65,12 +63,31 @@ def main(looger):
             logger.warning(f"模型文件{model_path}不存在，请将模型{project_args.weights}放入到{model_path}")
             raise FileNotFoundError(f"模型文件{model_path}不存在")
 
+        # 动态选择设备
+        if project_args.device is None:
+            # 自动选择CPU或GPU
+            device = 'cuda' if torch.cuda.is_available() else 'cpu'
+            logger.info(f"自动选择设备: {device}")
+        else:
+            # 用户指定了设备，检查GPU可用性
+            if 'cuda' in project_args.device and not torch.cuda.is_available():
+                logger.warning(f"用户请求CUDA设备 {project_args.device}，但系统没有可用GPU，将使用CPU")
+                device = 'cpu'
+            else:
+                device = project_args.device
+            logger.info(f"使用用户指定设备: {device}")
 
-
+        # 使用选定的设备初始化模型
         model = YOLO(model_path)
+        model.to(device)  # 将模型移至指定设备
+
         # 动态应用time_it装饰器
         decorated_run_training = time_it(iterations=1, name="模型训练", logger_instance=logger)(run_training)
-        results = decorated_run_training(model, yolo_args)
+        
+        # 更新训练参数中的设备
+        yolo_args_dict = vars(yolo_args)
+        yolo_args_dict['device'] = device
+        results = decorated_run_training(model, argparse.Namespace(**yolo_args_dict))
 
         # 获取结果
         if results and hasattr(model.trainer, 'save_dir'):
