@@ -3,6 +3,7 @@ import sys
 from datetime import datetime
 from pathlib import Path
 from colorlog import ColoredFormatter
+import re
 # from pythonjsonlogger import jsonlogger  #  pip install python-json-logger
 
 
@@ -93,6 +94,41 @@ def setup_logging(base_path: Path,
 
     return logger
 
+def rename_log_file(logger, save_dir, model_name):
+    """
+    将日志文件重命名为带有模型名称的日志文件
+    :param logger: 日志记录器
+    :param save_dir: 日志文件保存的目录
+    :param model_name: 模型名称
+    :return: None
+    """
+    for handler in list(logger.handlers):
+        if isinstance(handler, logging.FileHandler):
+            old_log_file = Path(handler.baseFilename)
+            timestamp_parts = re.findall(r"(\d{8}-\d{6})", old_log_file.stem, re.S)[0]
+            train_prefix = Path(save_dir).name
+            new_log_file = old_log_file.parent / f"{train_prefix}_{timestamp_parts}_{model_name}.log"
+            handler.close()
+            logger.removeHandler(handler)
+
+            # 文件重命名操作
+            if old_log_file.exists():
+                try:
+                    old_log_file.rename(new_log_file)
+                    logger.info(f"日志文件已经成功重命名: {new_log_file}")
+                except OSError as e:
+                    logger.error(f"重命名日志文件失败: {e}")
+                    re_added_handler = logging.FileHandler(old_log_file, encoding='utf-8')
+                    re_added_handler.setFormatter(logging.Formatter("%(asctime)s - %(name)s - %(levelname)s : %(message)s"))
+                    logger.addHandler(re_added_handler)
+                continue
+            else:
+                logger.warning(f"尝试重命名旧的日志文件 '{old_log_file}' 不存在")
+                continue
+            new_handler = logging.FileHandler(new_log_file, encoding='utf-8')
+            new_handler.setFormatter(logging.Formatter("%(asctime)s - %(name)s - %(levelname)s : %(message)s"))
+            logger.addHandler(new_handler)
+            break
 
 if __name__ == "__main__":
     setup_logging(base_path=Path("."), log_type="test")
