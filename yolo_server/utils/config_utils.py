@@ -217,7 +217,7 @@ def log_parameters(args, exclude_params=None):
 
 if __name__ == "__main__":
     from utils.logging_utils import setup_logging
-    from paths import LOGS_DIR
+    from utils.paths import LOGS_DIR
     logger = setup_logging(base_path=LOGS_DIR, log_type="生成测试")
     load_yaml_config(config_type='train')
     load_yaml_config(config_type='val')
