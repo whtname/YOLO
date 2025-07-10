@@ -1,21 +1,9 @@
-#!/usr/bin/env python
-# -*- coding:utf-8 -*-
-# @FileName  :yolo_model_val.py
-# @Time      :2025/7/7 09:41:32
-# @Author    :雨霓同学
-# @Project   :SafeYolo
 # @Function  :模型的验证
 from ultralytics import  YOLO
 import argparse
 import sys
 from pathlib import Path
-
-yolo_server_root_path = Path(__file__).resolve().parent.parent
-utils_path = yolo_server_root_path / "utils"
-if str(yolo_server_root_path) not in sys.path:
-    sys.path.insert(0,str(yolo_server_root_path))
-if str(utils_path) not in sys.path:
-    sys.path.insert(1,str(utils_path))
+import torch
 
 from utils.paths import CHECKPOINTS_DIR, LOGS_DIR, CONFIGS_DIR
 from logging_utils import setup_logging, rename_log_file
@@ -29,9 +17,9 @@ def parser_args():
     parser = argparse.ArgumentParser(description="YOLOv8 Validation")
     parser.add_argument("--data", type=str, default="data.yaml", help="yaml配置文件")
     parser.add_argument("--weights", type=str,
-                    default="train-20250704-160538-yolo11m-best.pt", help="模型权重文件")
+                    default="SRP.pt", help="模型权重文件")
     parser.add_argument("--batch", type=int, default=16, help="训练批次大小")
-    parser.add_argument("--device", type=str, default="0", help="训练设备")
+    parser.add_argument("--device", type=str, default=None, help="训练设备")
     parser.add_argument("--workers",type=int, default=8, help="训练数据加载线程数")
     parser.add_argument("--conf", type=float, default=0.25, help="置信度阈值")
     parser.add_argument("--iou", type=float, default=0.45, help="IOU阈值")
@@ -76,6 +64,20 @@ def main():
             logger.error(f"数据集配置文件不存在: {data_path}")
             raise FileNotFoundError(f"数据集配置文件不存在: {data_path}")
 
+        # 动态选择设备
+        if project_args.device is None:
+            # 自动选择CPU或GPU
+            device = 'cuda' if torch.cuda.is_available() else 'cpu'
+            logger.info(f"自动选择设备: {device}")
+        else:
+            # 用户指定了设备，检查GPU可用性
+            if 'cuda' in project_args.device and not torch.cuda.is_available():
+                logger.warning(f"用户请求CUDA设备 {project_args.device}，但系统没有可用GPU，将使用CPU")
+                device = 'cpu'
+            else:
+                device = project_args.device
+            logger.info(f"使用用户指定设备: {device}")
+
         # 检查模型配置文件并加载模型
         model_path = Path(args.weights)
         if not model_path.is_absolute():
@@ -92,7 +94,7 @@ def main():
             validator.metrics.save_dir = validator.save_dir
         model.add_callback("on_train_end", add_save_dir_train)
         model.add_callback("on_val_end", add_save_dir_val)
-
+       
         # 执行模型验证
         decorated_run_validation = time_it(iterations=1, name="模型验证",
                                         logger_instance=logger)(validate_model)

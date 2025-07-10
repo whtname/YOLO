@@ -131,4 +131,5 @@ def rename_log_file(logger, save_dir, model_name):
             break
 
 if __name__ == "__main__":
-    setup_logging(base_path=Path("."), log_type="test")
+    logger = setup_logging(base_path=Path("."), log_type="train_test",model_name='yolo11n', temp_log=True)
+    rename_log_file(logger, 'train1',model_name='yolo11n')

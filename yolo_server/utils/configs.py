@@ -359,13 +359,66 @@ COMMENTED_VAL_CONFIG = (
     "# 数据集分割 (val/test/train)，默认 val\n"
     f"split: {DEFAULT_VAL_CONFIG['split']}\n"
 )
+# 2. 定义 DEFAULT_BEAUTIFY_CONFIG 字典：仅包含美化绘制参数
+DEFAULT_BEAUTIFY_CONFIG = {
+    'beautify': True,
+    'font_path': 'LXGWWenKai-Bold.ttf', # 确保此字体文件在项目路径下或系统可访问
+    'base_font_size': 22,
+    'base_line_width': 4,
+    'base_label_padding_x': 30,
+    'base_label_padding_y': 18,
+    'base_radius': 8,
+    'text_color_bgr': [0, 0, 0], # BGR 格式，黑色
+    'use_chinese_mapping': True,
+    'label_mapping': {
+        'safety_helmet': "安全帽",
+        'reflective_vest': "反光背心",
+        'person': "人员",
+        'head': "头部",
+        'ordinary_clothes': "普通服装",
+    },
+    'color_mapping': {
+        'safety_helmet': [50, 205, 50],  # 绿色 (BGR)
+        'reflective_vest': [255, 255, 0], # 黄色 (BGR)
+        'person': [65, 105, 255],       # 橙色 (BGR)
+        'head': [0, 0, 255],            # 红色 (BGR)
+        'ordinary_clothes': [226, 43, 138], # 紫色 (BGR)
+    }
+}
 
+# 修复 COMMENTED_INFER_CONFIG 中的拼接问题（注意缩进和加号连接）
 COMMENTED_INFER_CONFIG = (
     "# === YOLO 推理模式核心配置 ===\n"
     "# 注：带(*)参数为高频调整项\n"
     "# 参数参考: https://docs.ultralytics.com/zh/modes/predict/#inference-arguments\n"
     "# 可手动修改参数，或通过命令行进行覆盖如 (--conf 0.5)\n"
     "\n"
+    "# === 美化绘制参数 (统一管理) ===\n"
+    "beautify_settings:\n"
+    "  # (*)启用美化绘制，支持圆角标签和中文显示，适合高质量可视化，默认 True\n"
+    f"  beautify: {str(DEFAULT_BEAUTIFY_CONFIG['beautify']).lower()}\n"
+    "  # (*)美化字体文件路径，例如 'LXGWWenKai-Bold.ttf'\n"
+    f"  font_path: {DEFAULT_BEAUTIFY_CONFIG['font_path']}\n"
+    "  # (*)美化字体大小，以 720p 分辨率为基准，自动缩放，默认 22\n"
+    f"  base_font_size: {DEFAULT_BEAUTIFY_CONFIG['base_font_size']}\n"
+    "  # (*)美化线宽，用于绘制检测框和标签，以 720p 为基准，自动缩放，默认 4\n"
+    f"  base_line_width: {DEFAULT_BEAUTIFY_CONFIG['base_line_width']}\n"
+    "  # (*)美化标签水平内边距，以 720p 为基准，自动缩放，默认 30\n"
+    f"  base_label_padding_x: {DEFAULT_BEAUTIFY_CONFIG['base_label_padding_x']}\n"
+    "  # (*)美化标签垂直内边距，以 720p 为基准，自动缩放，默认 18\n"
+    f"  base_label_padding_y: {DEFAULT_BEAUTIFY_CONFIG['base_label_padding_y']}\n"
+    "  # (*)美化圆角半径，用于标签圆角效果，以 720p 为基准，自动缩放，默认 8\n"
+    f"  base_radius: {DEFAULT_BEAUTIFY_CONFIG['base_radius']}\n"
+    "  # (*)文本颜色（BGR格式，例如 [0, 0, 0] 代表黑色）\n"
+    f"  text_color_bgr: {DEFAULT_BEAUTIFY_CONFIG['text_color_bgr']}\n"
+    "  # (*)是否使用中文标签映射，默认 True\n"
+    f"  use_chinese_mapping: {str(DEFAULT_BEAUTIFY_CONFIG['use_chinese_mapping']).lower()}\n"
+    "  # 标签映射：键为原始标签，值为显示标签\n"
+    "  label_mapping:\n"
+) + "".join([f"    {key}: \"{value}\"\n" for key, value in DEFAULT_BEAUTIFY_CONFIG['label_mapping'].items()]) + (
+    "  # 颜色映射：键为原始标签，值为颜色（BGR格式）\n"
+    "  color_mapping:\n"
+) + "".join([f"    {key}: {value}\n" for key, value in DEFAULT_BEAUTIFY_CONFIG['color_mapping'].items()]) + (
     "# --- 常见参数 (工地安全帽检测高频调整) ---\n"
     "# (*)数据源，指定工地视频/图像路径、URL或摄像头ID\n"
     f"source: {DEFAULT_INFER_CONFIG['source']}\n"
@@ -385,22 +438,6 @@ COMMENTED_INFER_CONFIG = (
     f"save_crop: {DEFAULT_INFER_CONFIG['save_crop']}\n"
     "# (*)实时显示注释图像/视频，适合现场监控或调试，默认 False\n"
     f"show: {DEFAULT_INFER_CONFIG['show']}\n"
-    "# (*)启用美化绘制，支持圆角标签和中文显示，适合高质量可视化，默认 True\n"
-    f"beautify: {True}\n"
-    "# (*)启用中文显示，适合高质量可视化，默认 True\n"
-    f"use-chinese: {True}\n"
-    "# (*)美化字体大小，以 720p 分辨率为基准，自动缩放，默认 22\n"
-    f"font_size: {22}\n"
-    "# (*)美化线宽，用于绘制检测框和标签，以 720p 为基准，自动缩放，默认 4\n"
-    f"line_width: {4}\n"
-    "# (*)美化标签水平内边距，以 720p 为基准，自动缩放，默认 30\n"
-    f"label_padding_x: {30}\n"
-    "# (*)美化标签垂直内边距，以 720p 为基准，自动缩放，默认 18\n"
-    f"label_padding_y: {18}\n"
-    "# (*)美化圆角半径，用于标签圆角效果，以 720p 为基准，自动缩放，默认 8\n"
-    f"radius: {8}\n"
-    "# (*)日志文件编码格式，支持 utf-8-sig、utf-8 等，默认 utf-8-sig\n"
-    f"log_encoding: {'utf-8-sig'}\n"
     "# (*)是否使用 YAML 配置文件覆盖命令行参数，适合批量配置，默认 True\n"
     f"use_yaml: {True}\n"
     "# (*)日志级别，支持 DEBUG、INFO、WARNING、ERROR，默认 INFO\n"

@@ -144,7 +144,7 @@ def convert_coco_json_to_yolo(json_input_dir: Path, task: str = "detection",cls9
 
 if __name__=="__main__":
     classes_name_ = convert_coco_json_to_yolo(
-        json_input_dir=Path(r"C:\Users\Matri\Desktop\BTD\yoloserver\data\raw\original_annotations"),
+        json_input_dir=Path(r"D:\python_program\safeY\yolo_server\data\raw\original_annotations"),
         task = "detection",
     )
     print(classes_name_)

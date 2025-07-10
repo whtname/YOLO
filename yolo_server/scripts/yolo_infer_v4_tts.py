@@ -1,23 +1,10 @@
-#!/usr/bin/env python
-# -*- coding:utf-8 -*-
-# @FileName  :yolo_infer_v3.py
-# @Time      :2025/7/8 09:37:36
-# @Author    :雨霓同学
-# @Project   :SafeYolo
-# @Function  :集成之前所有的功能+添加美化功能
+
 import argparse
 
 import cv2
 from ultralytics import YOLO
 from pathlib import Path
-
 import sys
-yolo_server_root_path = Path(__file__).resolve().parent.parent
-utils_path = yolo_server_root_path / "utils"
-if str(yolo_server_root_path) not in sys.path:
-    sys.path.insert(0,str(yolo_server_root_path))
-if str(utils_path) not in sys.path:
-    sys.path.insert(1,str(utils_path))
 
 from utils.logging_utils import setup_logging
 from utils.config_utils import load_yaml_config, merger_configs, log_parameters
@@ -105,7 +92,7 @@ def main():
         font_path="LXGWWenKai-Bold.ttf",
         text_color_bgr=(0, 0, 0),
         use_chinese_mapping=args.use_chinese_mapping,
-        label_mapping=yaml_config['beautify_setting']['label_mapping'],
+        label_mapping=yaml_config['beautify_settings']['label_mapping'],
         color_mapping=yaml_config["beautify_settings"]['color_mapping']
     )
     # 初始TTS语音合成引擎
