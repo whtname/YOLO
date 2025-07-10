@@ -1,0 +1,282 @@
+from typing import Generator, Callable
+import logging
+from ultralytics import YOLO
+from pathlib import Path
+import cv2
+import numpy as np
+import argparse  # 用于创建 Namespace 对象，以便 process_frame 接收 project_args_ns
+
+# 导入你的utils (确保这些路径在你实际项目中是正确的)
+from utils.infer_frame import process_frame
+from utils.paths import YOLO_SERVER_ROOT
+
+# 根据你的代码，YOLO_SERVICE_DIR 指向 YOLOSERVER_DIR
+YOLO_SERVICE_DIR = YOLO_SERVER_ROOT
+
+# 获取日志记录器
+logger = logging.getLogger("YOLO_Training")  # 使用你指定的 logger 名称
+
+
+def stream_inference(
+        weights: str,
+        source: str,
+        project_args: dict,  # 现在直接接收字典
+        yolo_args: dict,  # 现在直接接收字典
+        pause_callback: Callable[[], bool] = lambda: False
+) -> Generator[tuple[np.ndarray, np.ndarray, object], None, None]:
+    """
+    执行 YOLOv8 流式推理，并返回原始帧、标注帧和推理结果对象。
+
+    Args:
+        weights (str): YOLO 模型权重文件的路径。
+        source (str): 推理输入源，可以是图片/视频文件路径或摄像头索引 (例如 "0")。
+        project_args (dict): 包含所有项目级配置的字典，例如 'display_size', 'beautify' 等。
+        yolo_args (dict): 包含 YOLO predict 方法所需参数的字典，如 'conf', 'iou',
+                        以及控制保存的 'save_txt', 'save_conf', 'save_crop'。
+        pause_callback (Callable[[], bool]): 一个无参数的函数，返回 True 表示暂停推理。
+
+    Yields:
+        tuple[np.ndarray, np.ndarray, object]: (原始帧, 标注后的帧, YOLOv8 推理结果对象)。
+    """
+    logger.info("===== YOLOv8 安全帽检测 UI 推理开始 =====")
+
+    # 打印传入参数以供调试
+    print(f"DEBUG - weights: {weights}")
+    print(f"DEBUG - source: {source}")
+    print(f"DEBUG - project_args: {project_args}")
+    print(f"DEBUG - yolo_args: {yolo_args}")
+
+    model = None
+    cap = None
+    video_writer = None
+    last_frame = None
+    last_annotated = None
+
+    try:
+        # --- 1. 参数准备与路径验证 ---
+        # 1.1 分辨率和美化参数 (直接从 project_args 字典获取)
+        resolution_map = {
+            360: (640, 360),
+            720: (1280, 720),
+            1080: (1920, 1080),
+            1440: (2560, 1440),
+        }
+        # 使用 .get() 安全地获取值，提供默认值
+        display_width_set, display_height_set = resolution_map[project_args.get('display_size', 720)]
+
+        beautify_params = {}
+        # 如果 project_args 字典中直接包含了 beautify_calculated_params，则优先使用它
+        if 'beautify_calculated_params' in project_args:
+            beautify_params.update(project_args['beautify_calculated_params'])
+
+        # 将 project_args 字典转换为 argparse.Namespace，以匹配 process_frame 的签名
+        project_args['beautify'] = project_args['beautify_settings']['beautify']
+
+        project_args_ns = argparse.Namespace(**project_args)
+        print(project_args_ns)
+        # 1.2 路径验证
+        model_path = Path(weights)
+        if not model_path.is_absolute():
+            model_path = YOLO_SERVICE_DIR / "models" / "checkpoints" / weights
+
+        if not model_path.exists():
+            logger.error(f"模型文件不存在: {model_path}")
+            raise FileNotFoundError(f"模型文件不存在: {weights}")
+
+        is_camera_source = source.isdigit()
+        if not is_camera_source:
+            source_path_obj = Path(source)  # 使用一个 Path 对象来操作
+            if not source_path_obj.exists():
+                logger.error(f"输入源不存在: {source_path_obj}")
+                raise FileNotFoundError(f"输入源不存在: {source_path_obj}")
+            source = str(source_path_obj)  # 确保 source 是字符串路径
+
+        # 1.3 加载模型
+        logger.info(f"加载模型: {model_path}")
+        model = YOLO(str(model_path))
+
+        # 1.4 准备 YOLO 推理参数字典 (处理 'source' 冲突)
+        yolo_args_dict = yolo_args.copy()  # 创建副本，防止修改原始字典
+
+        # ***** 关键修正：移除 yolo_args_dict 中可能存在的 'source' 键 *****
+        # 因为实际的输入源会通过 model.predict() 的 source 参数（frame 或 img_path）传递
+        if 'source' in yolo_args_dict:
+            del yolo_args_dict['source']
+        # ***** 修正结束 *****
+
+        yolo_args_dict['stream'] = True  # 强制设置为 True，因为是流式推理
+        yolo_args_dict['show'] = False  # UI 端自己显示
+
+        # --- 2. 流式推理主循环 ---
+        # 判断是否为视频文件（包含摄像头）
+        is_video_or_camera = is_camera_source or source.endswith((".mp4", ".avi", ".mov"))
+
+        if is_video_or_camera:
+            cap = cv2.VideoCapture(int(source) if is_camera_source else source)
+            if not cap.isOpened():
+                logger.error(f"无法打开{'摄像头' if is_camera_source else '视频'}: {source}")
+                raise RuntimeError(f"无法打开{'摄像头' if is_camera_source else '视频'}: {source}")
+
+            fps = cap.get(cv2.CAP_PROP_FPS) or 30
+            # 使用 cap 实际读取到的分辨率作为当前视频流的分辨率
+            current_video_width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
+            current_video_height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
+            logger.info(f"视频分辨率: {current_video_width}x{current_video_height}, 帧率: {fps}")
+            logger.info(f"目标显示/保存分辨率: {display_width_set}x{display_height_set}")
+
+            frames_dir = None
+            save_dir = None
+            video_output_path = None  # 用于保存视频的完整路径
+            idx = 0
+
+            # 确认传入 model.predict 的 source 和 kwargs
+            print(f"DEBUG - Calling model.predict (video/camera) with source: {cap} and kwargs: {yolo_args_dict}")
+
+            while cap.isOpened():
+                if pause_callback():
+                    logger.debug("推理暂停")
+                    if last_frame is not None:
+                        yield last_frame, last_annotated, None  # 返回最后一帧以便UI保持显示
+                    cv2.waitKey(100)  # 暂停时等待一段时间，避免CPU占用过高
+                    continue
+
+                ret, frame = cap.read()
+                if not ret:
+                    break  # 视频结束或读取失败
+
+                results_generator = model.predict(source=frame, **yolo_args_dict)
+                result = next(iter(results_generator))  # 获取第一个结果对象
+
+                if idx == 0:  # 仅在第一帧时初始化保存路径和写入器
+                    # result.save_dir 是 YOLO 默认的保存路径，例如 runs/detect/predict
+                    # 我们需要将其调整为基于 YOLO_SERVICE_DIR 的相对路径
+                    # 假设 result.save_dir 是 runs/detect/predictX, 那么 YOLOSERVER_DIR/runs/detect/predictX 才是实际路径
+                    # 更稳健的做法是直接使用 YOLO_SERVICE_DIR 作为 project 参数的根目录，然后 name 会是 predictX
+                    # 这里暂时保持现有逻辑，但需注意实际路径匹配
+                    if result.save_dir:
+                        # 尝试构建相对于 YOLO_SERVICE_DIR 的路径
+                        try:
+                            # 假设 result.save_dir 是绝对路径，并且在 YOLO_SERVICE_DIR 之下
+                            save_dir = YOLO_SERVICE_DIR / Path(result.save_dir).relative_to(YOLO_SERVICE_DIR)
+                        except ValueError:
+                            # 如果 result.save_dir 不在 YOLO_SERVICE_DIR 之下，使用默认行为或更保守的路径
+                            save_dir = Path(result.save_dir)  # 默认使用 YOLO 生成的路径
+                        save_dir.mkdir(parents=True, exist_ok=True)
+                        logger.info(f"推理结果保存目录: {save_dir}")
+                    else:
+                        logger.warning("YOLO 未返回 save_dir。无法保存结果。")
+                        save_dir = None  # 确保 save_dir 为 None，避免后续操作出错
+
+                    if save_dir and project_args.get('save_frames', False):  # 'save_frame' 改为 'save_frames'
+                        frames_dir = save_dir / "0_frames"
+                        frames_dir.mkdir(parents=True, exist_ok=True)
+                        logger.info(f"保存帧图像路径: {frames_dir}")
+
+                    if save_dir and project_args.get('save', False):
+                        video_output_path = save_dir / "output.mp4"
+                        video_writer = cv2.VideoWriter(
+                            str(video_output_path),
+                            cv2.VideoWriter_fourcc(*"mp4v"),
+                            fps,  # 使用原始视频的帧率
+                            (current_video_width, current_video_height)  # 使用原始视频分辨率保存
+                        )
+                        if video_writer.isOpened():
+                            logger.info(f"视频写入器创建成功，将保存到: {video_output_path}")
+                        else:
+                            logger.warning(f"视频写入器创建失败，无法保存视频到: {video_output_path}")
+                            video_writer = None
+
+                annotated_frame = process_frame(frame, result, project_args_ns,
+                                                beautify_params)  # process_frame 的 project_args 参数现在是 Namespace
+
+                # 确保输出到UI和保存的帧是resize到目标分辨率的
+                display_raw_frame = cv2.resize(frame, (display_width_set, display_height_set))
+                display_annotated_frame = cv2.resize(annotated_frame, (display_width_set, display_height_set))
+
+                if video_writer:
+                    # 如果保存，使用原始分辨率的标注帧写入
+                    video_writer.write(annotated_frame)
+                if frames_dir:
+                    frame_path = frames_dir / f"{idx:06d}.jpg"  # 统一帧文件名格式
+                    cv2.imwrite(str(frame_path), annotated_frame)
+                    logger.debug(f"保存帧图像: {frame_path}")
+
+                last_frame, last_annotated = display_raw_frame, display_annotated_frame
+                yield display_raw_frame, display_annotated_frame, result
+                idx += 1
+            logger.info(f"{'摄像头' if is_camera_source else '视频'}推理完成，结果已保存至: {save_dir or '未保存'}")
+
+        else:  # 处理图片文件或图片目录
+            source_path_obj = Path(source)
+            image_files = [source_path_obj] if source_path_obj.is_file() else sorted(
+                source_path_obj.glob("*.[jp][pn][gf]"))
+
+            if not image_files:
+                logger.error("目录中无图片文件")
+                raise ValueError("目录中无图片文件")
+
+            save_dir = None
+            for idx, img_path in enumerate(image_files):
+                if pause_callback():
+                    logger.debug("推理暂停")
+                    if last_frame is not None:
+                        yield last_frame, last_annotated, None  # 返回最后一帧
+                    cv2.waitKey(100)  # 暂停时等待一段时间
+                    continue
+
+                raw_frame = cv2.imread(str(img_path))
+                if raw_frame is None:
+                    logger.warning(f"无法读取图片: {img_path}，跳过。")
+                    continue
+
+                # 确认传入 model.predict 的 source 和 kwargs
+                print(
+                    f"DEBUG - Calling model.predict (image) with source: {str(img_path)} and kwargs: {yolo_args_dict}")
+
+                results_generator = model.predict(source=str(img_path), **yolo_args_dict)
+                result = next(iter(results_generator))  # 获取第一个结果对象
+
+                if idx == 0:  # 仅在第一张图片时初始化保存路径
+                    if result.save_dir:
+                        try:
+                            save_dir = YOLO_SERVICE_DIR / Path(result.save_dir).relative_to(YOLO_SERVICE_DIR)
+                        except ValueError:
+                            save_dir = Path(result.save_dir)
+                        save_dir.mkdir(parents=True, exist_ok=True)
+                        logger.info(f"推理结果保存目录: {save_dir}")
+                    else:
+                        logger.warning("YOLO 未返回 save_dir。无法保存结果。")
+                        save_dir = None
+
+                annotated_frame = process_frame(raw_frame, result, project_args_ns,
+                                                beautify_params)  # process_frame 的 project_args 参数现在是 Namespace
+
+                if save_dir and project_args.get('save', False):
+                    output_path = save_dir / Path(result.path).name  # 使用原始文件名保存
+                    cv2.imwrite(str(output_path), annotated_frame)
+                    logger.debug(f"保存图像: {output_path}")
+
+                # 确保输出到UI的帧是resize到目标分辨率的
+                display_raw_frame = cv2.resize(raw_frame, (display_width_set, display_height_set))
+                display_annotated_frame = cv2.resize(annotated_frame, (display_width_set, display_height_set))
+
+                last_frame, last_annotated = display_raw_frame, display_annotated_frame
+                yield display_raw_frame, display_annotated_frame, result
+            logger.info(f"图片推理完成，结果已保存至: {save_dir or '未保存'}")
+
+
+
+    except Exception as e:
+        logger.error(f"UI 推理失败: {e}", exc_info=True)
+        raise  # 重新抛出异常，让上层调用者（InferenceThread）处理
+    finally:
+        if video_writer:
+            video_writer.release()
+            logger.info("视频写入器已释放。")
+        if cap:
+            cap.release()
+            logger.info("视频捕获资源已释放。")
+        if model:
+            # YOLO 模型对象可能不需要显式设置为 None，GC 会处理
+            logger.info("模型资源已释放。")
+        logger.info("===== YOLOv8 安全帽检测 UI 推理结束 =====")

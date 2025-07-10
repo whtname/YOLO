@@ -1,0 +1,420 @@
+#!/usr/bin/env python
+# -*- coding:utf-8 -*-
+# @FileName  :beautify.py
+# @Time      :2025/7/7 15:50:44
+# @Author    :雨霓同学
+# @Project   :SafeYolo
+# @Function  :美化脚本
+from PIL import Image, ImageDraw, ImageFont
+import cv2
+import numpy as np
+from collections import OrderedDict
+import logging
+
+logger = logging.getLogger(__name__)
+
+# 字体缓存机制
+text_size_cache = OrderedDict()
+MAX_CACHE_SIZE = 200
+
+# 预缓存中英文标签尺寸
+def preload_cache(font_path, font_size, label_mapping):
+    global text_size_cache
+    text_size_cache.clear()
+
+    try:
+        font = ImageFont.truetype(font_path, font_size)
+    except IOError:
+        logger.error(f"警告: 无法加载字体文件 '{font_path}', 跳过字体缓存")
+        return text_size_cache
+
+    # 预缓存中文和英文的典型文本尺寸
+    for label_val in list(label_mapping.values()) + list(label_mapping.keys()):
+        text_to_measure = f"{label_val} 88.88%"
+        cache_key = label_val
+        temp_image = Image.new("RGB", (1, 1))
+        draw = ImageDraw.Draw(temp_image)
+        if 'font' in locals() and font is not None:
+            bbox = draw.textbbox((0, 0), text_to_measure, font=font)
+            text_size_cache[cache_key] = (bbox[2] - bbox[0], bbox[3] - bbox[1])
+        else:
+            logger.error(f"警告: 找不到字体文件 '{font_path}', 跳过字体缓存")
+            break
+    return text_size_cache
+
+# 计算实际文本尺寸
+def get_text_size(text, font_obj, max_cache_size=MAX_CACHE_SIZE):
+    parts = text.split(" ")
+    if len(parts) > 1 and parts[-1].endswith("%"):
+        label_part = " ".join(parts[:-1])
+    else:
+        label_part = text
+    cache_key = label_part
+
+    if cache_key in text_size_cache:
+        return text_size_cache[cache_key]
+
+    temp_image = Image.new("RGB", (1, 1))
+    draw = ImageDraw.Draw(temp_image)
+    bbox = draw.textbbox((0, 0), text, font=font_obj)
+    width = bbox[2] - bbox[0]
+    height = bbox[3] - bbox[1]
+    text_size_cache[cache_key] = (width, height)
+    if len(text_size_cache) > max_cache_size:
+        text_size_cache.popitem(last=False)
+    return width, height
+
+# 计算美好参数
+def calculate_beautiful_params(
+        current_image_height,
+        current_image_width,
+        base_font_size = 24,
+        base_line_width = 2,
+        base_label_padding_x = 10,
+        base_label_padding_y = 10,
+        base_radius = 8,
+        ref_dim_for_scaling = 720,
+        font_path = "LXGWWenKai-Bold.ttf",
+        text_color_bgr = (0, 0, 0),
+        use_chinese_mapping=True,
+        label_mapping=None,
+        color_mapping=None
+    ):
+    """
+    根据图像的尺寸动态计算美化的参数
+    :type ref_dim_for_scaling: object
+    :param current_image_height:
+    :param current_image_width:
+    :param base_font_size:
+    :param base_line_width:
+    :param base_label_padding_x:
+    :param base_label_padding_y:
+    :param base_radius:
+    :param font_path:
+    :param text_color_bgr:
+    :param use_chinese_mapping:
+    :param label_mapping:
+    :param color_mapping:
+    :return:
+    """
+    if label_mapping is None:
+        label_mapping = {}
+    if color_mapping is None:
+        color_mapping = {}
+
+    current_short_dim = min(current_image_height, current_image_width)
+
+    if ref_dim_for_scaling == 0:
+        scale_factor = 1
+        logger.info(f"警告: red_dim_for_scaling 为 0, 缩放因子设置为 1")
+    else:
+        scale_factor = current_short_dim / ref_dim_for_scaling
+    # 动态调整字体大小和线条宽度，并确保最小尺寸
+    font_size_adjusted = max(10, int(base_font_size * scale_factor))
+    line_width_adjusted = max(1, int(base_line_width * scale_factor))
+    label_padding_x_adjusted = max(5, int(base_label_padding_x * scale_factor))
+    label_padding_y_adjusted = max(5, int(base_label_padding_y * scale_factor))
+    radius_adjusted = max(2, int(base_radius * scale_factor))
+
+    # 加载字体缓存
+    cache_dict = preload_cache(font_path, font_size_adjusted, label_mapping)
+    print(cache_dict)
+    return {
+        "font_path": font_path,
+        "font_size": font_size_adjusted,
+        "line_width": line_width_adjusted,
+        "label_padding_x": label_padding_x_adjusted,
+        "label_padding_y": label_padding_y_adjusted,
+        "radius": radius_adjusted,
+        "text_color_bgr": text_color_bgr,
+        "use_chinese_mapping": use_chinese_mapping,
+        "label_mapping": label_mapping,
+        "color_mapping": color_mapping,
+    }
+
+
+# 辅助绘制函数，绘制标签框和检测框
+# ======================= 绘制辅助函数 ==========================
+
+def draw_filled_rounded_rect(img, pt1, pt2, color, radius,
+                            top_left_round=True, top_right_round=True,
+                            bottom_left_round=True, bottom_right_round=True):
+    """
+    绘制一个填充的圆角矩形，可以控制每个角的圆角。
+    """
+    x1, y1 = pt1
+    x2, y2 = pt2
+
+    # 绘制矩形的主体部分
+    cv2.rectangle(img, (x1 + radius, y1), (x2 - radius, y2), color, -1)
+    cv2.rectangle(img, (x1, y1 + radius), (x2, y2 - radius), color, -1)
+
+    # 绘制四个角
+    if top_left_round:
+        cv2.circle(img, (x1 + radius, y1 + radius), radius, color, -1)
+    else:
+        cv2.rectangle(img, (x1, y1), (x1 + radius, y1 + radius), color, -1)
+
+    if top_right_round:
+        cv2.circle(img, (x2 - radius, y1 + radius), radius, color, -1)
+    else:
+        cv2.rectangle(img, (x2 - radius, y1), (x2, y1 + radius), color, -1)
+
+    if bottom_left_round:
+        cv2.circle(img, (x1 + radius, y2 - radius), radius, color, -1)
+    else:
+        cv2.rectangle(img, (x1, y2 - radius), (x1 + radius, y2), color, -1)
+
+    if bottom_right_round:
+        cv2.circle(img, (x2 - radius, y2 - radius), radius, color, -1)
+    else:
+        cv2.rectangle(img, (x2 - radius, y2 - radius), (x2, y2), color, -1)
+
+
+def draw_bordered_rounded_rect(img, pt1, pt2, color, line_width, radius,
+                            top_left_round=True, top_right_round=True,
+                            bottom_left_round=True, bottom_right_round=True):
+    """
+    绘制一个带边框的圆角矩形，可以控制每个角的圆角。
+    """
+    x1, y1 = pt1
+    x2, y2 = pt2
+    # width = x2 - x1
+    # height = y2 - y1
+
+    # 绘制直线部分
+    cv2.line(img, (x1 + radius, y1), (x2 - radius, y1), color, line_width)  # Top
+    cv2.line(img, (x1 + radius, y2), (x2 - radius, y2), color, line_width)  # Bottom
+    cv2.line(img, (x1, y1 + radius), (x1, y2 - radius), color, line_width)  # Left
+    cv2.line(img, (x2, y1 + radius), (x2, y2 - radius), color, line_width)  # Right
+
+    # 绘制圆弧或直线补齐角
+    # Top-Left
+    if top_left_round:
+        cv2.ellipse(img, (x1 + radius, y1 + radius), (radius, radius), 180, 0, 90, color, line_width)
+    else:
+        cv2.line(img, (x1, y1 + radius), (x1, y1), color, line_width)  # 垂直线到角
+        cv2.line(img, (x1, y1), (x1 + radius, y1), color, line_width)  # 水平线到角
+
+    # Top-Right
+    if top_right_round:
+        cv2.ellipse(img, (x2 - radius, y1 + radius), (radius, radius), 270, 0, 90, color, line_width)
+    else:
+        cv2.line(img, (x2, y1 + radius), (x2, y1), color, line_width)
+        cv2.line(img, (x2 - radius, y1), (x2, y1), color, line_width)
+
+    # Bottom-Left
+    if bottom_left_round:
+        cv2.ellipse(img, (x1 + radius, y2 - radius), (radius, radius), 90, 0, 90, color, line_width)
+    else:
+        cv2.line(img, (x1, y2 - radius), (x1, y2), color, line_width)
+        cv2.line(img, (x1, y2), (x1 + radius, y2), color, line_width)
+
+    # Bottom-Right
+    if bottom_right_round:
+        cv2.ellipse(img, (x2 - radius, y2 - radius), (radius, radius), 0, 0, 90, color, line_width)
+    else:
+        cv2.line(img, (x2, y2 - radius), (x2, y2), color, line_width)
+        cv2.line(img, (x2 - radius, y2), (x2, y2), color, line_width)
+
+# 自定义的美化函数
+def custom_plot(image,
+        boxes,
+        confs,
+        labels,
+        use_chinese_mapping=True,
+        font_path="LXGWWenKai-Bold.ttf",
+        font_size=26,
+        line_width=2,
+        label_padding_x=10,
+        label_padding_y=10,
+        radius=2,
+        text_color_bgr=(0,0,0),
+        label_mapping=None,
+        color_mapping=None,
+        ):
+    """
+    对检测结果进行美化
+    :param image:
+    :param boxes:
+    :param confs:
+    :param labels:
+    :param use_chinese_mapping:
+    :param font_path:
+    :param font_size:
+    :param line_width:
+    :param label_padding_x:
+    :param label_padding_y:
+    :param radius:
+    :param text_color_bgr:
+    :param label_mapping:
+    :param color_mapping:
+    :return:
+    """
+    if label_mapping is None:
+        label_mapping = {}
+    if color_mapping is None:
+        color_mapping = {}
+
+    result_image_cv = image.copy()
+    img_height, img_width = image.shape[:2]
+    try:
+        font_pil = ImageFont.truetype(font_path, font_size)
+    except OSError:
+        logger.error(f"无法加载字体文件，请检查字体文件路径: {font_path}")
+        font_pil = ImageFont.load_default()
+
+    # 存储所有需要绘制的文本信息
+    text_to_draw = []
+    for box, conf, label_key in zip(boxes, confs, labels):
+        x1, y1, x2, y2 = map(int, box)
+        color_bgr = color_mapping.get(label_key, (0, 255, 0))
+        # 标签语言
+        if use_chinese_mapping:
+            display_label = label_mapping.get(label_key, label_key)
+        else:
+            display_label = label_key
+        label_text_full = f"{display_label}: {conf * 100:.2f}%"
+
+        # 计算标签框尺寸和文本尺寸
+        text_width, text_height = get_text_size(label_text_full, font_pil, font_size)
+        label_box_actual_width = text_width + label_padding_x * 2
+        label_box_actual_height = text_height + label_padding_y * 2
+
+        label_box_actual_width = max(label_box_actual_width, 2 * radius)
+        # 标签框左对齐检测框
+        label_box_x_min = int(x1 - line_width // 2)
+
+        # 标签位置决策逻辑
+        # 默认尝试将标签放在检测框上方
+        label_box_y_min_potential_above = y1 - label_box_actual_height
+
+        # 标记是否在检测框内部绘制标签
+        draw_label_inside = False
+        # 如果标签框放在上面会超过图像的上边界
+        if label_box_y_min_potential_above < 0:
+            # 尝试将标签放在检测框内部的顶部
+            if (y2 - y1) >= (label_box_actual_height + line_width * 2):
+                label_box_y_min = int(y1 - line_width / 2)
+                label_box_y_max = y1 + label_box_actual_height
+                draw_label_inside = True
+            else: # 检测框高度太小，无法放置标签
+                label_box_y_min = y2 + line_width
+                label_box_y_max = y2 + label_box_actual_height + line_width
+                # 检查是否超过图像底部的顶部
+                if label_box_y_max > img_height:
+                    label_box_y_max = img_height
+                    label_box_y_min = img_height - label_box_actual_height
+                draw_label_inside = False
+        # 标签可用正常放在检测框上方
+        else:
+            label_box_y_min = label_box_y_min_potential_above
+            label_box_y_max = y1
+            draw_label_inside = False
+        # 标签框水平边界检测
+        label_box_x_max = label_box_x_min + label_box_actual_width
+        # 定义一个标注，指示标签是否需要靠右对齐
+        align_right = False
+        if label_box_x_max > img_width:
+            align_right = True
+            label_box_x_min = int(x2 + line_width // 2) - label_box_actual_width
+
+            if label_box_x_min < 0:
+                label_box_x_min = 0
+
+        # 判断标签框宽度是否大于检测框宽度，影响圆角状态
+        is_label_wider_than_det_box = label_box_actual_width > (x2 - x1)
+        # 定义标签框圆角状态
+        label_top_left_round = True
+        label_top_right_round = True
+        label_bottom_left_round = True
+        label_bottom_right_round = True
+
+        # 根据标签位置和对齐方式调整圆角
+        if not draw_label_inside:
+            if label_box_y_min == y1 - label_box_actual_height:
+                if align_right:
+                    label_bottom_left_round = is_label_wider_than_det_box
+                    label_bottom_right_round = False
+                else:
+                    label_bottom_left_round = False
+                    label_bottom_right_round = is_label_wider_than_det_box
+            elif label_box_y_min == y2 + line_width:
+                if align_right:
+                    label_top_left_round = is_label_wider_than_det_box
+                    label_top_right_round = False
+                else:
+                    label_top_left_round = False
+                    label_top_right_round = is_label_wider_than_det_box
+        else:
+            label_top_left_round = True
+            label_top_right_round = True
+            if align_right:
+                label_bottom_left_round = is_label_wider_than_det_box
+                label_bottom_right_round = False
+            else:
+                label_bottom_left_round = False
+                label_bottom_right_round = is_label_wider_than_det_box or not is_label_wider_than_det_box
+
+        # 定义检测框圆角状态
+        det_top_left_round = True
+        det_top_right_round = True
+        det_bottom_left_round = True
+        det_bottom_right_round = True
+
+        if not draw_label_inside:
+            if label_box_y_min == y1 - label_box_actual_height:
+                if align_right:
+                    det_top_left_round = is_label_wider_than_det_box
+                    det_top_right_round = False
+                else:
+                    det_top_left_round = False
+                    det_top_right_round = not is_label_wider_than_det_box
+            elif label_box_y_min == y2 + line_width:
+                if align_right:
+                    det_bottom_left_round = is_label_wider_than_det_box
+                    det_bottom_right_round = False
+                else:
+                    det_bottom_left_round = False
+                    det_bottom_right_round = is_label_wider_than_det_box
+        else:
+            det_top_left_round = False
+            det_top_right_round = False
+
+        # 绘制检测框
+        draw_bordered_rounded_rect(result_image_cv,(x1,y1), (x2,y2),
+                                color_bgr, line_width, radius,
+                                det_top_left_round, det_top_right_round,
+                                det_bottom_left_round, det_bottom_right_round
+        )
+        # 绘制标签框
+        draw_filled_rounded_rect(result_image_cv, (label_box_x_min, label_box_y_min),
+                                (label_box_x_min + label_box_actual_width,
+                                label_box_y_max),
+                                color_bgr, radius,
+                                label_top_left_round, label_top_right_round,
+                                label_bottom_left_round, label_bottom_right_round
+                                )
+
+        # 文本位置
+        text_x = label_box_x_min + int(label_box_actual_width - text_width) // 2
+        text_y = label_box_y_min + int(label_box_actual_height - text_height) // 2
+
+        # 存储文本信息
+        text_to_draw.append({
+            'text': label_text_full,
+            "position": (text_x, text_y),
+            "font": font_pil,
+            "fill_bgr": text_color_bgr,
+        })
+
+        if text_to_draw:
+            image_pil = Image.fromarray(cv2.cvtColor(result_image_cv, cv2.COLOR_BGR2RGB))
+            draw = ImageDraw.Draw(image_pil)
+            for text_info in text_to_draw:
+                fill_rgb = (text_info['fill_bgr'][2], text_info['fill_bgr'][1], text_info['fill_bgr'][0])
+                draw.text(text_info['position'], text_info['text'],
+                        font=text_info['font'], fill=fill_rgb)
+            result_image_cv = cv2.cvtColor(np.array(image_pil), cv2.COLOR_RGB2BGR)
+        return result_image_cv
+    return None
