@@ -22,6 +22,9 @@ PRETRAINED_MODELS_DIR = MODELS_DIR / "pretrained"
 # 训练好的模型存放目录
 CHECKPOINTS_DIR = MODELS_DIR / "checkpoints"
 
+# 图像分割模型存放目录
+SEGMENTATION_MODELS_DIR = MODELS_DIR / "segmentation"
+
 # 顶层脚本存放目录
 SCRIPTS_DIR = YOLO_SERVER_ROOT / "scripts"
 
@@ -49,6 +52,7 @@ if __name__ == '__main__':
         MODELS_DIR,
         PRETRAINED_MODELS_DIR,
         CHECKPOINTS_DIR,
+        SEGMENTATION_MODELS_DIR,
         SCRIPTS_DIR,
         LOGS_DIR,
         RAW_DATA_DIR,

@@ -6,12 +6,12 @@ from pathlib import Path
 import torch
 
 from utils.paths import CHECKPOINTS_DIR, LOGS_DIR, CONFIGS_DIR
-from logging_utils import setup_logging, rename_log_file
-from performance_utils import time_it
-from result_utils import log_results
-from config_utils import load_yaml_config, log_parameters, merger_configs
-from system_utils import log_device_info
-from datainfo_utils import log_dataset_info
+from utils.logging_utils import setup_logging, rename_log_file
+from utils.performance_utils import time_it
+from utils.result_utils import log_results
+from utils.config_utils import load_yaml_config, log_parameters, merger_configs
+from utils.system_utils import log_device_info
+from utils.datainfo_utils import log_dataset_info
 
 def parser_args():
     parser = argparse.ArgumentParser(description="YOLOv8 Validation")

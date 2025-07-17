@@ -283,9 +283,9 @@ if __name__ == "__main__":
         formatter_class=argparse.ArgumentDefaultsHelpFormatter
     )
 
-    parser.add_argument("--images_dir", type=Path, default='/home/niuoruo/Downloads/WIDER_train/images', help="包含所有原始图像的文件夹路径。")
-    parser.add_argument("--labels_dir", type=Path, default='/home/niuoruo/Downloads/wider_face_split/labels', help="包含所有YOLO格式 (.txt) 标签的文件夹路径。")
-    parser.add_argument("--output_dir", type=Path, default='/home/niuoruo/workspace/yolo/YOLO/yolo_server/data', help="用于存放划分后数据集的输出文件夹路径。")
+    parser.add_argument("--images_dir", type=Path, default='D:\python_program\yolo\facedata\images', help="包含所有原始图像的文件夹路径。")
+    parser.add_argument("--labels_dir", type=Path, default='D:\python_program\yolo\facedata\labels', help="包含所有YOLO格式 (.txt) 标签的文件夹路径。")
+    parser.add_argument("--output_dir", type=Path, default='D:\python_program\yolo\YOLO\yolo_server\data', help="用于存放划分后数据集的输出文件夹路径。")
     
     parser.add_argument("--classes", type=str, default='face', nargs='+',
                         help="类别名称列表，用空格分隔。例如: --classes person car truck")
