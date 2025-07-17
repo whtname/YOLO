@@ -1,10 +1,10 @@
 import torch
 import numpy as np
 from torchvision.transforms import ToTensor
-from utils.paths import CHECKPOINTS_DIR
+from utils.paths import SEGMENTATION_MODELS_DIR
 
-GPU_EFFICIENT_SAM_CHECKPOINT = CHECKPOINTS_DIR / "efficient_sam_s_gpu.jit"
-CPU_EFFICIENT_SAM_CHECKPOINT = CHECKPOINTS_DIR / "efficient_sam_s_cpu.jit"
+GPU_EFFICIENT_SAM_CHECKPOINT = SEGMENTATION_MODELS_DIR / "efficient_sam_s_gpu.jit"
+CPU_EFFICIENT_SAM_CHECKPOINT = SEGMENTATION_MODELS_DIR / "efficient_sam_s_cpu.jit"
 
 
 def load(device: str) -> torch.jit.ScriptModule:
