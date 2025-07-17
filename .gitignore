@@ -9,4 +9,3 @@ configs/
 model/pretrained
 runs/
 YOLO.egg-info/
-*.jit
