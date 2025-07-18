@@ -1,61 +1,54 @@
 import os
 from datetime import datetime
 import cv2
-import torch
 import numpy as np
-import random
 import colorsys
 from PySide6 import QtWidgets, QtCore, QtGui
 from PySide6.QtCore import Qt, QDir
 from PySide6.QtGui import QIcon
-from ultralytics import YOLO
 from utils.paths import CHECKPOINTS_DIR
-from utils.efficient_sam import load, inference_with_boxes
+from utils.efficient_sam import inference_with_boxes
+from deploy import (
+    list_models, 
+    load_model_and_sam, 
+    run_detection_on_frame, 
+    run_detection_on_file, 
+    start_camera, 
+    stop_camera
+)
 
 GOLDEN_RATIO_CONJUGATE = 0.61803398875
 
 class MyWindow(QtWidgets.QMainWindow):
     def __init__(self):
         super().__init__()
-        
-        # --- 数据成员初始化 ---
         self.model = None
+        self.sam_model = None
+        self.device = None
         self.cap = None
-        self.video = None
         self.file_path = None
         self.base_name = None
         self.folder_path = CHECKPOINTS_DIR
-        self.segmentation_enabled = False 
-
-        # --- 定时器初始化 ---
+        self.segmentation_enabled = False
         self.timer = QtCore.QTimer()
         self.timer.timeout.connect(self.detect_frame)
-
-        # --- 初始化UI ---
         self.init_gui()
 
     def init_gui(self):
-        """初始化主窗口和整体布局"""
-        self.setFixedSize(1400, 850) 
+        self.setFixedSize(1400, 850)
         self.setWindowTitle('目标检测与分割')
-        self.setWindowIcon(QIcon("logo.jpg")) 
-
+        self.setWindowIcon(QIcon("logo.jpg"))
         central_widget = QtWidgets.QWidget(self)
         self.setCentralWidget(central_widget)
-        
         self.set_background_image('./ui/bg.png')
-
         main_layout = QtWidgets.QVBoxLayout(central_widget)
         main_layout.setContentsMargins(20, 20, 20, 20)
-        main_layout.setSpacing(20) 
-
+        main_layout.setSpacing(20)
         display_layout = self._create_display_layout()
         main_layout.addLayout(display_layout)
-
         control_layout = self._create_control_layout()
         main_layout.addLayout(control_layout)
-
-        main_layout.addStretch() 
+        main_layout.addStretch()
 
     def _create_display_layout(self):
         """创建顶部用于显示视频和结果的布局"""
@@ -253,28 +246,18 @@ class MyWindow(QtWidgets.QMainWindow):
         if not filename:
             self.outputField.append(f'{datetime.now().strftime("%Y-%m-%d %H:%M:%S")} - 错误: 没有可加载的模型。')
             return
-            
         full_path = os.path.join(self.folder_path, filename + '.pt')
         self.base_name = filename
-        
-        if os.path.exists(full_path):
-            self.stop_detect()
-            try:
-                self.model = YOLO(full_path)
-                self.device = 'cuda' if torch.cuda.is_available() else 'cpu'
-                self.model.to(self.device)
-                self.sam_model = load(self.device)
-                self.outputField.append(f'{datetime.now().strftime("%Y-%m-%d %H:%M:%S")} - 模型加载成功: {filename} (设备: {self.device.upper()})')
-                self.outputField.append(f'{datetime.now().strftime("%Y-%m-%d %H:%M:%S")} - 请上传文件或打开摄像头进行检测。')
-
-                self.confidence_widget.setEnabled(True)
-                self.segmentation_checkbox.setEnabled(True)
-                self.openFileBtn.setEnabled(True)
-                self.startCameraBtn.setEnabled(True)
-            except Exception as e:
-                self.outputField.append(f'{datetime.now().strftime("%Y-%m-%d %H:%M:%S")} - 模型加载失败: {e}')
-        else:
-            self.outputField.append(f'{datetime.now().strftime("%Y-%m-%d %H:%M:%S")} - 错误: 模型文件不存在！路径: {full_path}')
+        try:
+            self.model, self.device, self.sam_model = load_model_and_sam(full_path)
+            self.outputField.append(f'{datetime.now().strftime("%Y-%m-%d %H:%M:%S")} - 模型加载成功: {filename} (设备: {self.device.upper()})')
+            self.outputField.append(f'{datetime.now().strftime("%Y-%m-%d %H:%M:%S")} - 请上传文件或打开摄像头进行检测。')
+            self.confidence_widget.setEnabled(True)
+            self.segmentation_checkbox.setEnabled(True)
+            self.openFileBtn.setEnabled(True)
+            self.startCameraBtn.setEnabled(True)
+        except Exception as e:
+            self.outputField.append(f'{datetime.now().strftime("%Y-%m-%d %H:%M:%S")} - 模型加载失败: {e}')
 
     def upload_file(self):
         self.stop_detect()
